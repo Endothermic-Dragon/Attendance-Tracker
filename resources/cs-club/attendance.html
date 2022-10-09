@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CS Club Attendance</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;900&display=swap" rel="stylesheet">
+
+<style>
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background-color: #1a1a1a;
+}
+body {
+  box-sizing: border-box;
+  padding: 20px 50px;
+  color: white;
+  text-align: center;
+  font-family: 'Roboto', sans-serif;
+  display: flex;
+  flex-direction: column;
+}
+h1 {
+  letter-spacing: 1px;
+  font-size: max(40px, 5vw);
+  margin: min(15%, 75px) 0;
+  flex: 0;
+}
+body > div {
+  flex: 1;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+input {
+  width: min(100%, 450px);
+  font-size: 24px;
+  outline: none;
+  border-radius: 10px;
+  border: none;
+  padding: 10px 15px;
+  box-sizing: border-box;
+  text-align: center;
+  flex: 0;
+  margin-bottom: 40px;
+}
+.checkbox-container {
+  flex: 1;
+  width: 100%;
+  margin: 20px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.checkbox-container > div {
+  aspect-ratio: 1;
+  width: min(275px, 90%);
+  display: inline-block;
+  border: 10px solid #32c732;
+  border-radius: 15%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.checkmark {
+  width: 70%;
+  height: 30%;
+  border-bottom: 20px solid #4a4a4a;
+  border-left: 20px solid #4a4a4a;
+  transform: translate(0, -30%) rotate(-45deg);
+  transition: border 0.15s;
+}
+.checkmark.active {
+  border-bottom: 20px solid #32c732;
+  border-left: 20px solid #32c732;
+}
+.message {
+  position: absolute;
+  width: min(85%, 500px);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  cursor: pointer;
+
+  background-color: #1a1a1a;
+  border: 10px solid black;
+  border-radius: 30px;
+  padding: 30px;
+  box-sizing: border-box;
+
+  display: none;
+}
+.message.active{
+  display: block;
+}
+.message h1 {
+  margin: 0 0 20px 0;
+  font-size: 40px;
+  color: red;
+}
+.message div {
+  font-size: 24px;
+}
+button {
+  background-color: #1a1a1a;
+  border: 5px solid white;
+  border-radius: 10px;
+  font-size: 24px;
+  color: white;
+  margin: 10px 20px 20px 20px;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+.message input {
+  margin: 20px 0;
+}
+.add-name {
+  display: none;
+}
+input[disabled] {
+   color: black;
+   background-color: #5e5e5e;
+}
+</style>
+</head>
+<body>
+  <h1>CS Club Attendance Form</h1>
+  <div>
+    <input placeholder="Enter your name">
+    <div class="checkbox-container">
+      <div>
+        <div class="checkmark"></div>
+      </div>
+    </div>
+  </div>
+  <div class="message">
+    <h1>Name Error</h1>
+    <div>
+      <div>Your name was not found on the database.</div>
+      <div class="add-name">
+        Would you like to add it?<br>
+        <input placeholder="Enter code"><br>
+        <button>Yes</button><button>No</button>
+      </div>
+      <div>Click on this message to close it.</div>
+    </div>
+  </div>
+<script>
+let button = document.querySelector(".checkbox-container > div")
+let inputField = document.getElementsByTagName("input")[0]
+let alertBox = document.querySelector(".message")
+let addNameButton = document.querySelector("button")
+let joinCode = document.getElementsByTagName("input")[1]
+
+inputField.value = window.localStorage.name || ""
+joinCode.addEventListener("click", e => e.stopPropagation())
+
+if (window.localStorage.used == window.location.pathname.split("/").at(-1)){
+  inputField.disabled = true
+  document.getElementsByClassName("checkmark")[0].classList.add("active")
+}
+
+addNameButton.addEventListener("click", () => {
+  fetch("/cs-club/add-name", {
+    method: "POST",
+    headers: {'Content-Type': 'application/json'}, 
+    body: JSON.stringify({
+      "name": inputField.value,
+      "code": joinCode.value
+    })
+  }).then(async res => {
+    statusCode = await res.json();
+    //console.log(statusCode)
+    if (statusCode.code == 0){
+      setTimeout(() => button.click(), 100)
+    } else {
+      alertBox.children[0].innerText = "Code Error"
+      alertBox.children[1].children[0].innerText = "Invalid join code entered."
+      alertBox.children[1].children[1].style.display = ""
+      return alertBox.classList.add("active")
+    }
+  });
+})
+
+button.addEventListener("click", () => {
+  if (inputField.value == ""){
+    alertBox.children[0].innerText = "Name Error"
+    alertBox.children[1].children[0].innerText = "Please enter a valid name."
+    alertBox.children[1].children[1].style.display = ""
+    return alertBox.classList.add("active")
+  }
+
+  fetch("/cs-club/present", {
+    method: "POST",
+    headers: {'Content-Type': 'application/json'}, 
+    body: JSON.stringify({
+      "name": inputField.value,
+      "date": new Date().toString()
+    })
+  }).then(async res => {
+    statusCode = await res.json();
+    console.log(statusCode)
+    if (statusCode.code == 0){
+      document.getElementsByClassName("checkmark")[0].classList.add("active")
+      window.localStorage.name = inputField.value
+      window.localStorage.used = window.location.pathname.split("/").at(-1)
+      inputField.disabled = true
+    } else if (statusCode.code == 4){
+      alertBox.children[0].innerText = "Name Error"
+      alertBox.children[1].children[0].innerText = "Your name was not found on the database."
+      if (statusCode.data){
+        alertBox.children[1].children[1].style.display = "block"
+      } else {
+        alertBox.children[1].children[1].style.display = ""
+      }
+      return alertBox.classList.add("active")
+    } else if (statusCode.code == 5){
+      alertBox.children[0].innerText = "Code Error"
+      alertBox.children[1].children[0].innerText = "You have entered an incorrect code as the URL."
+      alertBox.children[1].children[1].style.display = ""
+      return alertBox.classList.add("active")
+    } else {
+      alertBox.children[0].innerText = "Date Error"
+      alertBox.children[1].children[0].innerText = "The attendance form is not open right now."
+      alertBox.children[1].children[1].style.display = ""
+      return alertBox.classList.add("active")
+    }
+  });
+})
+
+alertBox.addEventListener("click", () => alertBox.classList.remove("active"))
+</script>
+</body>
+</html>

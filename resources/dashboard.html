@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Attendance Dashboard</title>
+<style>
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background-color: #1a1a1a;
+}
+body {
+  box-sizing: border-box;
+  padding: 20px 50px;
+  color: white;
+  text-align: center;
+  font-family: 'Roboto', sans-serif;
+  display: flex;
+  flex-direction: column;
+}
+h1 {
+  letter-spacing: 1px;
+  font-size: max(40px, 5vw);
+  margin: min(10%, 50px) 0;
+  flex: 0;
+}
+body > div {
+  flex: 1
+}
+.day-container {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-evenly;
+}
+.day-container > div {
+  margin: 0 50px;
+}
+.day-container h1 {
+  font-size: max(30px, 2.5vw);
+}
+.code {
+  font-size: 20px;
+  margin-top: 10px;
+}
+.day-container button {
+  margin-top: 15px;
+  font-size: 20px;
+  background-color: #1a1a1a;
+  border: 5px solid white;
+  border-radius: 10px;
+  color: white;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+</style>
+</head>
+<body>
+  <h1>Attendance Dashboard</h1>
+  <div class="day-container"></div>
+<script>
+let container = document.getElementsByClassName("day-container")[0];
+fetch(
+  window.location.href.split("/").slice(0,4).join("/") + "/get-url-codes"
+).then(async res => {
+  data = await res.json();
+  for (let i = 0; i < data.length; i++){
+    let el = data[i]
+    let parentDiv = document.createElement("div")
+    let title = document.createElement("h1")
+    title.innerText = el.title
+    parentDiv.append(title)
+
+    let img = document.createElement("img")
+    img.src = el.qrcode
+    img.style.width = "300px"
+    parentDiv.append(img)
+
+    let code = document.createElement("div")
+    code.innerText = "Code: " + el.code
+    code.classList.add("code")
+    parentDiv.append(code)
+
+    let button = document.createElement("button")
+    button.innerText = "Click to copy URL"
+    parentDiv.append(button)
+    button.addEventListener("click", () => {
+      navigator.clipboard.writeText(el.url);
+    })
+
+    parentDiv.dataset.url = el.url
+    container.appendChild(parentDiv)
+  }
+});
+</script>
+</body>
+</html>
