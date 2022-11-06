@@ -1,4 +1,5 @@
 const path = require('path');
+const fs = require('fs');
 
 const express = require('express')
 const app = express()
@@ -7,31 +8,30 @@ app.use(express.json());
 var QRCode = require('qrcode')
 
 const { google } = require("googleapis");
-const creds = require('./token.json');
 const parser = require('any-date-parser');
 const cellref = require('cellref')
 
+const creds = require('./creds.json')
+
 const seedrandom = require('seedrandom');
 
-const auth = new google.auth.OAuth2(
-  creds.client_id,
-  creds.client_secret,
-  "urn:ietf:wg:oauth:2.0:oob"
-);
 
-auth.setCredentials({
-  refresh_token: creds.refresh_token,
-  token_type: "Bearer"
-});
+function newClient(){
+  return new google.auth.OAuth2(
+    creds.id,
+    creds.secret,
+    "http://localhost"
+  );
+}
 
-const sheets = google.sheets({ version: "v4", auth });
+const sheets = google.sheets({ version: "v4" });
 
 const sheetIDs = {
   "cs-club": "1BR3Ob0W6hmA8RKcdnTtmB85LyXhNmphe6dMtWJZOZEE",
   "sci-oly": "15K_4CaRx4cMMkbF-yfYDqhP9cobccKu3O8BfLf6gtwA"
 }
 
-async function update(sheetID, date, name, hash){
+async function update(sheetID, date, name, hash, oauth){
   if (name == ""){
     return {code: 1, message: "Invalid name."}
   }
@@ -39,6 +39,7 @@ async function update(sheetID, date, name, hash){
   const sheet = await sheets.spreadsheets.values.get({
     spreadsheetId: sheetID,
     range: "Sheet1",
+    auth: oauth
   }).then(res => res.data.values);
 
   function getDate(date){
@@ -118,17 +119,22 @@ async function update(sheetID, date, name, hash){
 }
 
 app.get(/^\/[^\/]+\/get-url-codes$/, async (req, res) => {
-  const sheetID = sheetIDs[
-    req.url.split("/")[1]
-  ];
+  const source = req.url.split("/")[1];
+  const sheetID = sheetIDs[source];
 
   if (!sheetID){
     return res.send("404 Not Found")
   }
 
+  const authData = JSON.parse(fs.readFileSync('tokens.json'));
+  let authPackage = authData[source];
+  let oauth2Client = newClient()
+  oauth2Client.setCredentials(authPackage)
+
   const sheet = await sheets.spreadsheets.values.get({
     spreadsheetId: sheetID,
     range: "Sheet1",
+    auth: oauth2Client
   }).then(res => res.data.values);
 
   if (sheet[22][0] != req.get("referer").split("/").at(-1)){
@@ -167,24 +173,37 @@ app.get(/^\/[^\/]+\/dashboard$/, (req, res) => {
 })
 
 app.get(/^\/[^\/]+\/dashboard\/.*$/, async (req, res) => {
-  const sheetID = sheetIDs[
-    req.url.split("/")[1]
-  ];
+  const source = req.url.split("/")[1];
+  const sheetID = sheetIDs[source];
 
   if (!sheetID){
     return res.send("404 Not Found")
   }
+  
+  try {
+    const authData = JSON.parse(fs.readFileSync('tokens.json'));
+    let authPackage = authData[source];
+    let oauth2Client = newClient()
+    oauth2Client.setCredentials(authPackage)
 
-  const sheet = await sheets.spreadsheets.values.get({
-    spreadsheetId: sheetID,
-    range: "Sheet1!A23:A23",
-  }).then(res => res.data.values[0][0]);
+    const sheet = await sheets.spreadsheets.values.get({
+      spreadsheetId: sheetID,
+      range: "Sheet1!A23:A23",
+      auth: oauth2Client
+    }).then(res => res.data.values[0][0]);
 
-  if (sheet == req.originalUrl.split("/").at(-1)){
-    return res.sendFile(path.join(__dirname, 'resources/dashboard.html'))
+    if (sheet == req.originalUrl.split("/").at(-1)){
+      return res.sendFile(path.join(__dirname, 'resources/dashboard.html'))
+    }
+
+    res.send("401 Unauthorized")
+  } catch {
+    res.redirect(`/${source}/sign-in`)
   }
+})
 
-  res.send("401 Unauthorized")
+app.get(/^\/[^\/]+\/sign-in$/, async (req, res) => {
+  return res.sendFile(path.join(__dirname, 'resources/sign-in.html'))
 })
 
 app.get(/^\/[^\/]+\/.*$/, (req, res) => {
@@ -194,33 +213,91 @@ app.get(/^\/[^\/]+\/.*$/, (req, res) => {
   res.sendFile(path.join(__dirname, `resources/${req.url.split("/")[1]}/attendance.html`))
 })
 
+app.get("/google-sign-in.js", async (req, res) => {
+  res.sendFile(path.join(__dirname, `resources/google-sign-in.js`))
+})
+
+app.post(/^\/[^\/]+\/set-credentials/, async (req, res) => {
+  if (req.get("X-Requested-With") != "javascript-fetch"){
+    // Unauthorized request origin
+    return res.status(400).send({})
+  }
+
+  if (!req.body.code){
+    return res.status(404).send({})
+  }
+
+  source = req.originalUrl.split("/")[1];
+
+  console.log(source);
+
+  const oauth2Client = newClient()
+  tokens = await oauth2Client.getToken(req.body.code).then(data => data.tokens);
+  console.log(tokens)
+  let currData;
+  try {
+    currData = JSON.parse(fs.readFileSync('tokens.json'));
+  } catch {
+    currData = {}
+  }
+  currData[source] = tokens;
+  fs.writeFileSync('tokens.json', JSON.stringify(currData, null, 2));
+
+  res.send({status: true})
+
+  // oauth2Client.setCredentials(tokens);
+
+  // const sheets = google.sheets({ version: "v4" });
+
+  // const sheet = await sheets.spreadsheets.values.get({
+  //   spreadsheetId: sheetIDs["cs-club"],
+  //   range: "Sheet1!A23:A23",
+  //   auth: oauth2Client
+  // }).then(res => res.data.values[0][0]);
+  // console.log(sheet)
+})
+
 app.post(/^\/[^\/]+\/present$/, async (req, res) => {
-  hash = req.get("referer").split("/").at(-1)
-  const sheetID = sheetIDs[
-    req.url.split("/")[1]
-  ];
+  const source = req.url.split("/")[1];
+  const sheetID = sheetIDs[source];
 
   if (!sheetID){
     return res.send("404 Not Found")
   }
+  try {
+    const authData = JSON.parse(fs.readFileSync('tokens.json'));
+  } catch {
+    return res.send({code: 6})
+  }
+  let authPackage = authData[source];
+  let oauth2Client = newClient()
+  oauth2Client.setCredentials(authPackage)
+
+  hash = req.get("referer").split("/").at(-1)
+
 
   // console.log(req.body)
-  let status = await update(sheetID, req.body.date, req.body.name, hash)
+  let status = await update(sheetID, req.body.date, req.body.name, hash, oauth2Client)
   res.send(status)
 })
 
 app.post(/^\/[^\/]+\/add-name$/, async (req, res) => {
-  const sheetID = sheetIDs[
-    req.url.split("/")[1]
-  ];
+  const source = req.url.split("/")[1];
+  const sheetID = sheetIDs[source];
 
   if (!sheetID){
     return res.send("404 Not Found")
   }
+  
+  const authData = JSON.parse(fs.readFileSync('tokens.json'));
+  let authPackage = authData[source];
+  let oauth2Client = newClient()
+  oauth2Client.setCredentials(authPackage)
 
   const sheet = await sheets.spreadsheets.values.get({
     spreadsheetId: sheetID,
     range: "Sheet1",
+    auth: oauth2Client
   }).then(res => res.data.values);
 
   if (sheet[7][0].toLowerCase() == "false"){
@@ -242,7 +319,8 @@ app.post(/^\/[^\/]+\/add-name$/, async (req, res) => {
       values: [[req.body.name]]
     },
     valueInputOption: "USER_ENTERED",
-    insertDataOption: "OVERWRITE"
+    insertDataOption: "OVERWRITE",
+    auth: oauth2Client
   })
 
   sheets.spreadsheets.batchUpdate({
@@ -269,7 +347,8 @@ app.post(/^\/[^\/]+\/add-name$/, async (req, res) => {
           }
         }
       ]
-    }
+    },
+    auth: oauth2Client
   })
 
   res.send({code: 0})

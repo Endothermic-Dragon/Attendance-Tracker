@@ -228,6 +228,11 @@ button.addEventListener("click", () => {
       alertBox.children[1].children[0].innerText = "You have entered an incorrect code as the URL."
       alertBox.children[1].children[1].style.display = ""
       return alertBox.classList.add("active")
+    } else if (statusCode.code == 6){
+      alertBox.children[0].innerText = "Sign In Error"
+      alertBox.children[1].children[0].innerText = "Please ask the leaders to sign in."
+      alertBox.children[1].children[1].style.display = ""
+      return alertBox.classList.add("active")
     } else {
       alertBox.children[0].innerText = "Date Error"
       alertBox.children[1].children[0].innerText = "The attendance form is not open right now."
