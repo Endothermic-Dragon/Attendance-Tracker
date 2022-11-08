@@ -1,4 +1,7 @@
-credentials.json
-token.json
 node_modules
-creds.json
+tokens.json
+.env
+# Elastic Beanstalk Files
+.elasticbeanstalk/*
+!.elasticbeanstalk/*.cfg.yml
+!.elasticbeanstalk/*.global.yml

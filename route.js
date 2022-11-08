@@ -11,15 +11,18 @@ const { google } = require("googleapis");
 const parser = require('any-date-parser');
 const cellref = require('cellref')
 
-const creds = require('./creds.json')
+// const creds = require('./creds.json')
+const dotenv = require('dotenv');
+dotenv.config();
 
 const seedrandom = require('seedrandom');
 
+// console.log(process.env.secret)
 
 function newClient(){
   return new google.auth.OAuth2(
-    creds.id,
-    creds.secret,
+    "190836595018-t97kk6shg0u7in2jf86gklffmj6ec6bq.apps.googleusercontent.com",
+    process.env.secret,
     "http://localhost"
   );
 }
@@ -78,7 +81,7 @@ async function update(sheetID, date, name, hash, oauth){
   for (let i = 0; i < 8; i++){
     correctHash += String.fromCharCode(97 + Math.floor(rng() * 26))
   }
-  console.log(correctHash)
+  // console.log(correctHash)
   if (hash != correctHash){
     return {code: 5, message: "Incorrect code in URL."}
   }
@@ -229,11 +232,11 @@ app.post(/^\/[^\/]+\/set-credentials/, async (req, res) => {
 
   source = req.originalUrl.split("/")[1];
 
-  console.log(source);
+  // console.log(source);
 
   const oauth2Client = newClient()
   tokens = await oauth2Client.getToken(req.body.code).then(data => data.tokens);
-  console.log(tokens)
+  // console.log(tokens)
   let currData;
   try {
     currData = JSON.parse(fs.readFileSync('tokens.json'));
