@@ -22,7 +22,7 @@ const seedrandom = require('seedrandom');
 function newClient(){
   return new google.auth.OAuth2(
     "190836595018-t97kk6shg0u7in2jf86gklffmj6ec6bq.apps.googleusercontent.com",
-    process.env.secret,
+    process.env.secret || "",
     "http://localhost"
   );
 }
@@ -120,6 +120,14 @@ async function update(sheetID, date, name, hash, oauth){
 
   // console.log(JSON.stringify(sheet, null, 2));
 }
+
+app.get(/.*/, async (req, res, next) => {
+  try {
+    next()
+  } catch (e) {
+    res.send(e)
+  }
+})
 
 app.get(/^\/[^\/]+\/get-url-codes$/, async (req, res) => {
   const source = req.url.split("/")[1];
