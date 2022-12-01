@@ -22,7 +22,7 @@ const seedrandom = require('seedrandom');
 function newClient(){
   return new google.auth.OAuth2(
     "190836595018-t97kk6shg0u7in2jf86gklffmj6ec6bq.apps.googleusercontent.com",
-    process.env.secret || "",
+    process?.env?.secret || "",
     "http://localhost"
   );
 }

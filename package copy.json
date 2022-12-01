@@ -1,6 +1,9 @@
 {
   "name": "attendance-tracker",
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "main": "route.js",
+  "author": "Eshaan Debnath",
+  "license": "ISC",
   "private": true,
   "scripts": {
     "start": "node ./test.js"
@@ -16,5 +19,9 @@
     "nodemon": "^2.0.20",
     "qrcode": "^1.5.1",
     "seedrandom": "^3.0.5"
+  },
+  "engines" : { 
+    "npm" : "16.18.0",
+    "node" : ">=16.0.0 <17.0.0"
   }
 }
