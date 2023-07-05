@@ -19,6 +19,10 @@ const seedrandom = require('seedrandom');
 
 // console.log(process.env.secret)
 
+if (process.env.secret == "") {
+  console.log("No secret found");
+}
+
 function newClient(){
   return new google.auth.OAuth2(
     "190836595018-t97kk6shg0u7in2jf86gklffmj6ec6bq.apps.googleusercontent.com",
@@ -242,6 +246,7 @@ app.post(/^\/[^\/]+\/set-credentials/, async (req, res) => {
 
   // console.log(source);
 
+  console.log("About to get tokens!");
   const oauth2Client = newClient()
   tokens = await oauth2Client.getToken(req.body.code).then(data => data.tokens);
   // console.log(tokens)
